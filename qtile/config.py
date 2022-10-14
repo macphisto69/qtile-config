@@ -24,23 +24,28 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from scripts import storage
 
 import os
 import re
 import socket
 import subprocess
 from typing import List  # noqa: F401
-from libqtile import layout, bar, widget, hook
+from libqtile import layout, bar, widget, hook, qtile
 from libqtile.config import Click, Drag, Group, Key, Match, Screen, Rule
 from libqtile.command import lazy
 from libqtile.widget import Spacer
-import arcobattery
+from libqtile.widget import base
+#import arcobattery
 
 #mod4 or mod = super key
 mod = "mod4"
 mod1 = "alt"
 mod2 = "control"
 home = os.path.expanduser('~')
+home_dir = os.path.expanduser('~')
+#terminal = f"alacritty --config-file {home_dir}/.config/alacritty/alacritty.yml"
+terminal = "alacritty"
 
 
 @lazy.function
@@ -69,7 +74,6 @@ keys = [
 
     Key([mod, "shift"], "q", lazy.window.kill()),
     Key([mod, "shift"], "r", lazy.restart()),
-    Key([mod, "shift"], "p", lazy.spawn("/opt/piavpn/bin/pia-client")),
 
 
 # QTILE LAYOUT KEYS
@@ -160,6 +164,28 @@ keys = [
 
     ]
 
+def window_to_previous_screen(qtile, switch_group=False, switch_screen=False):
+    i = qtile.screens.index(qtile.current_screen)
+    if i != 0:
+        group = qtile.screens[i - 1].group.name
+        qtile.current_window.togroup(group, switch_group=switch_group)
+        if switch_screen == True:
+            qtile.cmd_to_screen(i - 1)
+
+def window_to_next_screen(qtile, switch_group=False, switch_screen=False):
+    i = qtile.screens.index(qtile.current_screen)
+    if i + 1 != len(qtile.screens):
+        group = qtile.screens[i + 1].group.name
+        qtile.current_window.togroup(group, switch_group=switch_group)
+        if switch_screen == True:
+            qtile.cmd_to_screen(i + 1)
+
+keys.extend([
+    # MOVE WINDOW TO NEXT SCREEN
+    Key([mod,"shift"], "Right", lazy.function(window_to_next_screen, switch_screen=True)),
+    Key([mod,"shift"], "Left", lazy.function(window_to_previous_screen, switch_screen=True)),
+])
+
 groups = []
 
 # FOR QWERTY KEYBOARDS
@@ -169,8 +195,7 @@ group_names = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0",]
 #group_names = ["ampersand", "eacute", "quotedbl", "apostrophe", "parenleft", "section", "egrave", "exclam", "ccedilla", "agrave",]
 
 #group_labels = ["1 ", "2 ", "3 ", "4 ", "5 ", "6 ", "7 ", "8 ", "9 ", "0",]
-group_labels = ["", "", "", "", "", "", "", "", "", "",]
-#group_labels = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",]
+group_labels = ["", "", "", "", "", "", "", "", "", "",]
 #group_labels = ["Web", "Edit/chat", "Image", "Gimp", "Meld", "Video", "Vb", "Files", "Mail", "Music",]
 
 group_layouts = ["monadtall", "monadtall", "monadtall", "monadtall", "monadtall", "monadtall", "monadtall", "monadtall", "monadtall", "monadtall",]
@@ -212,8 +237,10 @@ layout_theme = init_layout_theme()
 
 
 layouts = [
-    layout.MonadTall(margin=8, border_width=2, border_focus="#5e81ac", border_normal="#4c566a"),
-    layout.MonadWide(margin=8, border_width=2, border_focus="#5e81ac", border_normal="#4c566a"),
+    #layout.MonadTall(margin=8, border_width=2, border_focus="#5e81ac", border_normal="#4c566a"),
+    layout.MonadTall(**layout_theme),
+    #layout.MonadWide(margin=8, border_width=2, border_focus="#5e81ac", border_normal="#4c566a"),
+    layout.MonadWide(**layout_theme),
     layout.Matrix(**layout_theme),
     layout.Bsp(**layout_theme),
     layout.Floating(**layout_theme),
@@ -222,153 +249,275 @@ layouts = [
 ]
 
 # COLORS FOR THE BAR
-#Theme name : ArcoLinux Default
+#Theme name : AxylOS
 def init_colors():
-    return [["#2F343F", "#2F343F"], # color 0
-            ["#2F343F", "#2F343F"], # color 1
-            ["#c0c5ce", "#c0c5ce"], # color 2
-            ["#fba922", "#fba922"], # color 3
-            ["#3384d0", "#3384d0"], # color 4
-            ["#f3f4f5", "#f3f4f5"], # color 5
-            ["#cd1f3f", "#cd1f3f"], # color 6
-            ["#62FF00", "#62FF00"], # color 7
-            ["#6790eb", "#6790eb"], # color 8
-            ["#a9a9a9", "#a9a9a9"]] # color 9
+    return [["#282a36", "#282a36"], # color 0 | bg
+            ["#282a36", "#282a36"], # color 1 | bg
+            ["#f8f8f2", "#f8f8f2"], # color 2 | fg
+            ["#ff5555", "#ff5555"], # color 3 | red
+            ["#50fa7b", "#50fa7b"], # color 4 | green
+            ["#f1fa8c", "#f1fa8c"], # color 5 | yellow
+            ["#bd93f9", "#bd93f9"], # color 6 | blue
+            ["#ff79c6", "#ff79c6"], # color 7 | magenta
+            ["#8be9fd", "#8be9fd"], # color 8 | cyan
+            ["#bbbbbb", "#bbbbbb"]] # color 9 | white
+
+def init_separator():
+    return widget.Sep(
+                size_percent = 60,
+                margin = 5,
+                linewidth = 2,
+                background = colors[1],
+                foreground = "#555555")
+
+def nerd_icon(nerdfont_icon, fg_color):
+    return widget.TextBox(
+                font = "Iosevka Nerd Font",
+                fontsize = 15,
+                text = nerdfont_icon,
+                foreground = fg_color,
+                background = colors[1])
+
+def init_edge_spacer():
+    return widget.Spacer(
+                length = 5,
+                background = colors[1])
 
 
 colors = init_colors()
+sep = init_separator()
+space = init_edge_spacer()
 
 
 # WIDGETS FOR THE BAR
 
 def init_widgets_defaults():
-    return dict(font="Noto Sans",
+    return dict(font="Source Code Pro Medium",
                 fontsize = 12,
-                padding = 2,
+                padding = 7,
                 background=colors[1])
 
 widget_defaults = init_widgets_defaults()
 
 def init_widgets_list():
-    prompt = "{0}@{1}: ".format(os.environ["USER"], socket.gethostname())
+    # prompt = "{0}@{1}: ".format(os.environ["USER"], socket.gethostname())
     widgets_list = [
-               widget.GroupBox(font="FontAwesome",
-                        fontsize = 14,
-                        margin_y = 3,
-                        margin_x = 0,
-                        padding_y = 6,
-                        padding_x = 5,
-                        borderwidth = 0,
-                        disable_drag = True,
-                        active = colors[6],
-                        inactive = colors[5],
-                        rounded = False,
-                        highlight_method = "text",
-                        this_current_screen_border = colors[3],
-                        foreground = colors[2],
-                        background = colors[1]
-                        ),
-               widget.Sep(
-                        linewidth = 1,
-                        padding = 10,
-                        foreground = colors[2],
-                        background = colors[1]
-                        ),
-               widget.CurrentLayout(
-                        font = "Noto Sans Bold",
-                        foreground = colors[5],
-                        background = colors[1]
-                        ),
-               widget.Sep(
-                        linewidth = 1,
-                        padding = 10,
-                        foreground = colors[2],
-                        background = colors[1]
-                        ),
-               widget.WindowName(font="Noto Sans",
-                        fontsize = 12,
-                        foreground = colors[5],
-                        background = colors[1],
-                        ),
-               widget.Sep(
-                        linewidth = 1,
-                        padding = 10,
-                        foreground = colors[2],
-                        background = colors[1]
-                        ),
+                # Left Side of the bar
+                space,
+                widget.Image(
+                filename = "/usr/share/pixmaps/archlinux-logo.png",
+                background = colors[1],
+                margin = 3,
+                mouse_callbacks = {
+                    'Button1': lambda : qtile.cmd_spawn(
+                        "dmenu_run -i -nb '#191919' -nf '#fea63c' -sb '#fea63c' -sf '#191919' -fn 'NotoMonoRegular:bold:pixelsize=14'"
+                    ),
+                    'Button3': lambda : qtile.cmd_spawn(
+                        f'{terminal} -e nvim {home_dir}/.config/qtile/config.py'
+                    )
+                }
+            ),
+            sep,
+                widget.GroupBox(
+                font = "Iosevka Nerd Font",
+                fontsize = 14,
+                foreground = colors[2],
+                background = colors[1],
+                borderwidth = 4,
+                highlight_method = "text",
+                this_current_screen_border = colors[6],
+                active = colors[4],
+                inactive = colors[2]
+            ),
+            sep,
+            widget.Spacer(
+                length = bar.STRETCH,
+                background = colors[1]
+            ),
 
-            #    widget.Net(
-            #             font="Noto Sans",
-            #             fontsize=12,
-            #             interface="enp0s31f6",
-            #             foreground=colors[2],
-            #             background=colors[1],
-            #             padding = 0,
-            #             ),
+            # Centre bar
+
+            nerd_icon(
+                "",
+                colors[7]
+            ),
+            widget.CurrentLayout(
+                foreground = colors[2],
+                background = colors[1]
+            ),
+            sep,
+            nerd_icon(
+                "﬙",
+                colors[3]
+            ),
+            widget.CPU(
+                format = "{load_percent}%",
+                foreground = colors[2],
+                background = colors[1],
+                update_interval = 2,
+                mouse_callbacks = {
+                    'Button1': lambda : qtile.cmd_spawn(f"{terminal} -e gtop")
+                }
+            ),
+            nerd_icon(
+                "",
+                colors[4]
+            ),
+            widget.Memory(
+                format = "{MemUsed:.0f}{mm}",
+                foreground = colors[2],
+                background = colors[1],
+                update_interval = 2,
+                mouse_callbacks = {
+                    'Button1': lambda : qtile.cmd_spawn(f"{terminal} -e gtop")
+                }
+            ),
+            nerd_icon(
+                "",
+                colors[6]
+            ),
+            widget.GenPollText(
+                foreground = colors[2],
+                background = colors[1],
+                update_interval = 5,
+                func = lambda: storage.diskspace('FreeSpace'),
+                mouse_callbacks = {
+                    'Button1': lambda : qtile.cmd_spawn(f"{terminal} -e gtop")
+                }
+            ),
+            sep,
+            nerd_icon(
+                "",
+                colors[4]
+            ),
+            widget.GenPollText(
+                foreground = colors[2],
+                background = colors[1],
+                update_interval = 5,
+                func = lambda: subprocess.check_output(f"{home_dir}/.config/qtile/scripts/num-installed-pkgs").decode("utf-8")
+            ),
+            widget.Spacer(
+                length = bar.STRETCH,
+                background = colors[1]
+            ),
+            nerd_icon(
+                "",
+                colors[4]
+            ),
+            widget.Net(
+                format = "{down} ↓↑ {up}",
+                foreground = colors[2],
+                background = colors[1],
+                update_interval = 2,
+                mouse_callbacks = {
+                    'Button1': lambda : qtile.cmd_spawn("def-nmdmenu")
+                }
+            ),
+            sep,
+            nerd_icon(
+                "",
+                colors[7]
+            ),
+            widget.Clock(
+                format = '%Y-%m-%d',
+                foreground = colors[2],
+                background = colors[1]
+            ),
+            nerd_icon(
+                "",
+                colors[8]
+            ),
+            widget.Clock(
+                format = '%H:%M',
+                foreground = colors[2],
+                background = colors[1]
+            ),
+            widget.Systray(
+                background = colors[1]
+            ),
+            # Right side of the bar
+               # widget.CurrentLayout(
+               #          font = "Noto Sans Bold",
+               #          foreground = colors[5],
+               #          background = colors[1]
+               #          ),
+               # widget.WindowName(font="Noto Sans",
+               #          fontsize = 12,
+               #          foreground = colors[5],
+               #          background = colors[1],
+               #          ),
+               # widget.Net(
+               #          font="Noto Sans",
+               #          fontsize=12,
+               #          interface="enp0s31f6",
+               #          foreground=colors[2],
+               #          background=colors[1],
+               #          padding = 0,
+               #          ),
                # widget.Sep(
                #          linewidth = 1,
                #          padding = 10,
                #          foreground = colors[2],
                #          background = colors[1]
                #          ),
-               widget.NetGraph(
-                        font="Noto Sans",
-                        fontsize=12,
-                        bandwidth="down",
-                        interface="auto",
-                        fill_color = colors[8],
-                        foreground=colors[2],
-                        background=colors[1],
-                        graph_color = colors[8],
-                        border_color = colors[2],
-                        padding = 0,
-                        border_width = 1,
-                        line_width = 1,
-                        ),
-               widget.Sep(
-                        linewidth = 1,
-                        padding = 10,
-                        foreground = colors[2],
-                        background = colors[1]
-                        ),
-               # do not activate in Virtualbox - will break qtile
-               widget.ThermalSensor(
-                        foreground = colors[5],
-                        foreground_alert = colors[6],
-                        background = colors[1],
-                        metric = True,
-                        padding = 3,
-                        threshold = 80
-                        ),
-               # battery option 1  ArcoLinux Horizontal icons do not forget to import arcobattery at the top
-               widget.Sep(
-                        linewidth = 1,
-                        padding = 10,
-                        foreground = colors[2],
-                        background = colors[1]
-                        ),
-               arcobattery.BatteryIcon(
-                        padding=0,
-                        scale=0.7,
-                        y_poss=2,
-                        theme_path=home + "/.config/qtile/icons/battery_icons_horiz",
-                        update_interval = 5,
-                        background = colors[1]
-                        ),
+               # widget.NetGraph(
+               #          font="Noto Sans",
+               #          fontsize=12,
+               #          bandwidth="down",
+               #          interface="auto",
+               #          fill_color = colors[8],
+               #          foreground=colors[2],
+               #          background=colors[1],
+               #          graph_color = colors[8],
+               #          border_color = colors[2],
+               #          padding = 0,
+               #          border_width = 1,
+               #          line_width = 1,
+               #          ),
+               # widget.Sep(
+               #          linewidth = 1,
+               #          padding = 10,
+               #          foreground = colors[2],
+               #          background = colors[1]
+               #          ),
+               # # do not activate in Virtualbox - will break qtile
+               # widget.ThermalSensor(
+               #          foreground = colors[5],
+               #          foreground_alert = colors[6],
+               #          background = colors[1],
+               #          metric = True,
+               #          padding = 3,
+               #          threshold = 80
+               #          ),
+               # # battery option 1  ArcoLinux Horizontal icons do not forget to import arcobattery at the top
+               # widget.Sep(
+               #          linewidth = 1,
+               #          padding = 10,
+               #          foreground = colors[2],
+               #          background = colors[1]
+               #          ),
+               # arcobattery.BatteryIcon(
+               #          padding=0,
+               #          scale=0.7,
+               #          y_poss=2,
+               #          theme_path=home + "/.config/qtile/icons/battery_icons_horiz",
+               #          update_interval = 5,
+               #          background = colors[1]
+               #          ),
                # # battery option 2  from Qtile
-            #    widget.Sep(
-            #             linewidth = 1,
-            #             padding = 10,
-            #             foreground = colors[2],
-            #             background = colors[1]
-            #             ),
-            #    widget.Battery(
-            #             font="Noto Sans",
-            #             update_interval = 10,
-            #             fontsize = 12,
-            #             foreground = colors[5],
-            #             background = colors[1],
-	        #             ),
+               # widget.Sep(
+               #          linewidth = 1,
+               #          padding = 10,
+               #          foreground = colors[2],
+               #          background = colors[1]
+               #          ),
+               # widget.Battery(
+               #          font="Noto Sans",
+               #          update_interval = 10,
+               #          fontsize = 12,
+               #          foreground = colors[5],
+               #          background = colors[1],
+	           #          ),
                # widget.TextBox(
                #          font="FontAwesome",
                #          text="  ",
@@ -415,38 +564,31 @@ def init_widgets_list():
                #          foreground = colors[2],
                #          background = colors[1]
                #          ),
-               widget.TextBox(
-                        font="FontAwesome",
-                        text="  ",
-                        foreground=colors[3],
-                        background=colors[1],
-                        padding = 0,
-                        fontsize=16
-                        ),
-               # widget.Sep(
-               #          linewidth = 1,
-               #          padding = 10,
-               #          foreground = colors[2],
-               #          background = colors[1]
+               # widget.TextBox(
+               #          font="FontAwesome",
+               #          text="  ",
+               #          foreground=colors[3],
+               #          background=colors[1],
+               #          padding = 0,
+               #          fontsize=16
                #          ),
-               widget.Systray(
-                        background=colors[1],
-                        foreground=colors[3], # Not sure if this even belongs..
-                        icon_size=20,
-                        padding = 4
-                        ),
-               widget.Sep(
-                         linewidth = 1,
-                         padding = 10,
-                         foreground = colors[2],
-                         background = colors[1]
-                         ),
-              widget.Clock(
-                      foreground = colors[3],
-                      background = colors[1],
-                      fontsize = 12,
-                      format="%A, %B %d - %H:%M "
-                       ) 
+               # widget.Clock(
+               #          foreground = colors[5],
+               #          background = colors[1],
+               #          fontsize = 12,
+               #          format="%Y-%m-%d %H:%M"
+               #          ),
+               # # widget.Sep(
+               # #          linewidth = 1,
+               # #          padding = 10,
+               # #          foreground = colors[2],
+               # #          background = colors[1]
+               # #          ),
+               # widget.Systray(
+               #          background=colors[1],
+               #          icon_size=20,
+               #          padding = 4
+               #          ),
               ]
     return widgets_list
 
@@ -552,7 +694,7 @@ bring_front_click = False
 cursor_warp = False
 floating_layout = layout.Floating(float_rules=[
     # Run the utility of `xprop` to see the wm class and name of an X client.
-    *layout.Floating.default_float_rules, 
+    *layout.Floating.default_float_rules,
     Match(wm_class='confirmreset'),  # gitk
     Match(wm_class='makebranch'),  # gitk
     Match(wm_class='maketag'),  # gitk
@@ -560,7 +702,6 @@ floating_layout = layout.Floating(float_rules=[
     Match(title='branchdialog'),  # gitk
     Match(title='pinentry'),  # GPG key password entry
     Match(wm_class='Arcolinux-welcome-app.py'),
-    Match(wm_class='Arcolinux-tweak-tool.py'),
     Match(wm_class='Arcolinux-calamares-tool.py'),
     Match(wm_class='confirm'),
     Match(wm_class='dialog'),
@@ -573,7 +714,7 @@ floating_layout = layout.Floating(float_rules=[
     Match(wm_class='Arandr'),
     Match(wm_class='feh'),
     Match(wm_class='Galculator'),
-    Match(wm_class='arcolinux-logout'),
+    Match(wm_class='archlinux-logout'),
     Match(wm_class='xfce4-terminal'),
 
 ],  fullscreen_border_width = 0, border_width = 0)
