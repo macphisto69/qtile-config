@@ -27,8 +27,8 @@ echo "####################################"
 echo "Write your commit comment!"
 echo "####################################"
 
-#read input
-input="update"
+read input
+#input="update"
 
 # Committing to the local repository with a message containing the time details and commit text
 

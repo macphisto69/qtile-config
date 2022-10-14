@@ -330,6 +330,15 @@ def init_widgets_list():
                 inactive = colors[2]
             ),
             sep,
+            nerd_icon(
+                "  ",
+                colors[6]
+            ),
+            widget.Battery(
+                foreground = colors[2],
+                background = colors[1],
+                format = "{percent:2.0%}"
+            ),
             widget.Spacer(
                 length = bar.STRETCH,
                 background = colors[1]
