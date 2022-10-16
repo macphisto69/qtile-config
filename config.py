@@ -32,7 +32,7 @@ import socket
 import subprocess
 from typing import List  # noqa: F401
 from libqtile import layout, bar, widget, hook, qtile
-from libqtile.config import Click, Drag, Group, Key, Match, Screen, Rule
+from libqtile.config import Click, Drag, Group, Key, Match, Screen, Rule, ScratchPad, DropDown
 from libqtile.command import lazy
 from libqtile.widget import Spacer
 from libqtile.widget import base
@@ -162,6 +162,9 @@ keys = [
 # TOGGLE FLOATING LAYOUT
     Key([mod, "shift"], "space", lazy.window.toggle_floating()),
 
+# Scratchpads
+    Key([mod], "m", lazy.group["music"].dropdown_toggle("tunes")),
+
     ]
 
 def window_to_previous_screen(qtile, switch_group=False, switch_screen=False):
@@ -210,8 +213,11 @@ for i in range(len(group_names)):
             label=group_labels[i],
         ))
 
+groups.append(ScratchPad("music",[DropDown("tunes", "alacritty -e ncmpcpp", x=0.05, y=0.02, width=0.95, height=0.6, on_focus_lost_hide=False)]))
+
 for i in groups:
-    keys.extend([
+    if i.name in ["1", "2", "3", "4", "5", "6", "7", "8", "9","0"]:
+        keys.extend([
 
 #CHANGE WORKSPACES
         Key([mod], i.name, lazy.group[i.name].toscreen()),
@@ -228,7 +234,7 @@ for i in groups:
 
 
 def init_layout_theme():
-    return {"margin":5,
+    return {"margin":8,
             "border_width":2,
             "border_focus": "#5e81ac",
             "border_normal": "#4c566a"
@@ -273,8 +279,9 @@ def init_separator():
 
 def nerd_icon(nerdfont_icon, fg_color):
     return widget.TextBox(
-                font = "Iosevka Nerd Font",
-                fontsize = 15,
+                # font = "Iosevka Nerd Font",
+                font = "SauceCodePro Nerd Font",
+                fontsize = 14,
                 text = nerdfont_icon,
                 foreground = fg_color,
                 background = colors[1])
@@ -335,7 +342,8 @@ def init_widgets_list():
             ),
             sep,
             nerd_icon(
-                "  ",
+                # "  ",
+                " ",
                 colors[6]
             ),
             widget.Battery(
@@ -612,17 +620,16 @@ def init_widgets_screen1():
     widgets_screen1 = init_widgets_list()
     return widgets_screen1
 
-def init_widgets_screen2():
-    widgets_screen2 = init_widgets_list()
-    return widgets_screen2
+#def init_widgets_screen2():
+#    widgets_screen2 = init_widgets_list()
+#    return widgets_screen2
 
 widgets_screen1 = init_widgets_screen1()
-widgets_screen2 = init_widgets_screen2()
+#widgets_screen2 = init_widgets_screen2()
 
 
 def init_screens():
-    return [Screen(top=bar.Bar(widgets=init_widgets_screen1(), size=26, opacity=0.8)),
-            Screen(top=bar.Bar(widgets=init_widgets_screen2(), size=26, opacity=0.8))]
+    return [Screen(top=bar.Bar(widgets=init_widgets_screen1(), size=26, opacity=0.8))]
 screens = init_screens()
 
 
