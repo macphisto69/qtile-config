@@ -8,15 +8,15 @@
 
 # Vivaldi
 super + F1
-  firefox	
+	firefox
 
 # Atom
 super + F2
-	atom
+  emacsclient -c -a 'emacs'	
 
 #Inkscape
 super + F3
-    inkscape
+    pcmanfm
 
 #Gimp
 super + F4
@@ -117,7 +117,7 @@ super + KP_Enter
 
 #File-Manager
 super + shift + Return
-	thunar
+	pcmanfm
 
 #Keyboard dependent
 #File-Manager
@@ -207,11 +207,11 @@ ctrl + alt + s
 
 #alacritty
 ctrl + alt + Return
-    alacritty
+    xfce4-terminal
 
 #alacritty
 ctrl + alt + t
-    alacritty
+    xfce4-terminal
 
 #Vivaldi
 ctrl + alt + v
