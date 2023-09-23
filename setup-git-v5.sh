@@ -46,6 +46,8 @@ echo
 #https://blog.nillsf.com/index.php/2021/05/27/github-sso-using-password-protected-ssh-keys
 
 project=$(basename "$(pwd)")
+token="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"
+
 #githubdir=$(basename $(dirname "$PWD" | tr '[:upper:]' '[:lower:]'))
 echo "-----------------------------------------------------------------------------"
 echo "this is project https://github.com/macphisto69/${project}.git"
@@ -60,7 +62,7 @@ git config --global core.editor nvim
 #git config --global credential.helper cache
 #git config --global credential.helper 'cache --timeout=32000'
 
-git remote set-url origin https://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@github.com/macphisto69/"${project}.git"
+git remote set-url origin https://"${token}"@github.com/macphisto69/"${project}.git"
 
 echo
 tput setaf 3
